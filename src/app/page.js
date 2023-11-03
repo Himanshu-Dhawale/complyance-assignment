@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useQuery } from 'react-query';
 import axios from 'axios';
+import { FaSpinner } from 'react-icons/fa';
 
 const fetchStarWarsPeople = async (page) => {
   const response = await axios.get(`https://swapi.dev/api/people/?page=${page}`);
@@ -35,7 +36,7 @@ export default function Home() {
     fetchStarWarsPeople(currentPage)
       .then((data) => {
         setStarWarsPeople(data.results);
-        setTotalPages(Math.ceil(data.count / 10)); // Assuming 10 characters per page.
+        setTotalPages(Math.ceil(data.count / 10));
       })
       .catch((err) => {
         setError(err);
@@ -56,8 +57,9 @@ export default function Home() {
   const filteredCharacters = starWarsPeople.filter((character) => {
     const matchSearch = character.name.toLowerCase().includes(searchText.toLowerCase());
     const matchFilter = (filterOption === 'homeworld' && character.homeworld) ||
-      (filterOption === 'film' && character.films.length > 0) ||
-      (filterOption === 'species' && character.species.length > 0);
+  (filterOption === 'film' && character.films.length > 0) ||
+  (filterOption === 'species' && character.species.length > 0);
+
 
     return matchSearch && matchFilter;
   });
@@ -88,30 +90,38 @@ export default function Home() {
         </select>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {filteredCharacters.map((character, index) => (
-          <div
-            key={character.name}
-            className="bg-blue-200 rounded-lg p-4 cursor-pointer hover:bg-blue-300"
-            onClick={() => openCharacterModal(character)}
-          >
-            <Image
-              src={randomImages[index % randomImages.length]?.download_url}
-              alt={character.name}
-              width={200}
-              height={200}
-              className="rounded-full mb-2"
-            />
-            <p className="text-xl font-semibold">{character.name}</p>
-            <p className="text-sm text-gray-600">Species: {character.species[0] || 'Unknown'}</p>
+        {loading ? (
+          <div className="loader">
+            <FaSpinner className="animate-spin text-blue-500 text-4xl" />
           </div>
-        ))}
+        ) : (
+          filteredCharacters.map((character, index) => (
+            <div
+              key={character.name}
+              className="bg-blue-200 rounded-lg p-4 cursor-pointer hover:bg-blue-300"
+              onClick={() => openCharacterModal(character)}
+            >
+              <Image
+                src={randomImages[index % randomImages.length]?.download_url}
+                alt={character.name}
+                width={200}
+                height={200}
+                className="rounded-full mb-2"
+              />
+              <p className="text-xl font-semibold">{character.name}</p>
+              <p className="text-sm text-gray-600">Species: {character.species[0] || 'Unknown'}</p>
+            </div>
+          ))
+        )}
       </div>
-      <div className="pagination">
+      <div className="pagination mt-4 sticky top-0">
         {Array.from({ length: totalPages }, (_, i) => (
           <button
             key={i}
             onClick={() => goToPage(i + 1)}
-            className={`page-button ${i + 1 === currentPage ? 'active' : ''}`}
+            className={`bg-blue-500 text-white font-semibold px-3 py-2 rounded-full hover:bg-blue-600 mx-2 ${
+              i + 1 === currentPage ? 'bg-blue-600' : ''
+            }`}
           >
             {i + 1}
           </button>
