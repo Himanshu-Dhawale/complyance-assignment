@@ -5,64 +5,56 @@ import Image from 'next/image';
 import { useQuery } from 'react-query';
 import axios from 'axios';
 import { FaSpinner } from 'react-icons/fa';
+import CharacterModal from './components/CharacterModal';
 
 const fetchStarWarsPeople = async (page) => {
   const response = await axios.get(`https://swapi.dev/api/people/?page=${page}`);
   return response.data;
 };
 
-const fetchRandomImages = async () => {
-  const response = await axios.get('https://picsum.photos/v2/list?page=1&limit=10');
-  return response.data;
-};
-
 export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [starWarsPeople, setStarWarsPeople] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const { data: randomImages } = useQuery('randomImages', fetchRandomImages);
-
-  const [selectedCharacter, setSelectedCharacter] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [filterOption, setFilterOption] = useState('homeworld');
+  const [selectedCharacter, setSelectedCharacter] = useState(null);
+  const [homeworld, setHomeworld] = useState(null);
 
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-
+  const { data: starWarsPeople, isLoading, isError } = useQuery(['starWarsPeople', currentPage], () =>
     fetchStarWarsPeople(currentPage)
-      .then((data) => {
-        setStarWarsPeople(data.results);
-        setTotalPages(Math.ceil(data.count / 10));
-      })
-      .catch((err) => {
-        setError(err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [currentPage]);
+  );
 
   const openCharacterModal = (character) => {
     setSelectedCharacter(character);
+    fetchHomeworldInfo(character.homeworld);
   };
 
   const closeCharacterModal = () => {
     setSelectedCharacter(null);
+    setHomeworld(null);
   };
 
-  const filteredCharacters = starWarsPeople.filter((character) => {
-    const matchSearch = character.name.toLowerCase().includes(searchText.toLowerCase());
-    const matchFilter = (filterOption === 'homeworld' && character.homeworld) ||
-  (filterOption === 'film' && character.films.length > 0) ||
-  (filterOption === 'species' && character.species.length > 0);
+  const fetchHomeworldInfo = async (homeworldUrl) => {
+    try {
+      const response = await axios.get(homeworldUrl);
+      setHomeworld(response.data);
+    } catch (error) {
+      console.error('Error fetching homeworld information', error);
+      setHomeworld(null);
+    }
+  };
 
+  const filteredCharacters = starWarsPeople?.results
+    ?.filter((character) => {
+      const matchSearch = character.name.toLowerCase().includes(searchText.toLowerCase());
+      const matchFilter =
+        (filterOption === 'homeworld' && character.homeworld) ||
+        (filterOption === 'film' && character.films.length > 0) ||
+        (filterOption === 'species' && character.species.length > 0);
 
-    return matchSearch && matchFilter;
-  });
+      return matchSearch && matchFilter;
+    }) || [];
+
+  const totalPages = Math.ceil(starWarsPeople?.count / 10) || 1;
 
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -71,6 +63,7 @@ export default function Home() {
   };
 
   return (
+
     <div className="min-h-screen p-8">
       <h2 className="text-2xl font-bold mb-4">Star Wars Characters:</h2>
       <div>
@@ -90,10 +83,12 @@ export default function Home() {
         </select>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {loading ? (
+        {isLoading ? (
           <div className="loader">
             <FaSpinner className="animate-spin text-blue-500 text-4xl" />
           </div>
+        ) : isError ? (
+          <p>Error loading data</p>
         ) : (
           filteredCharacters.map((character, index) => (
             <div
@@ -102,7 +97,7 @@ export default function Home() {
               onClick={() => openCharacterModal(character)}
             >
               <Image
-                src={randomImages[index % randomImages.length]?.download_url}
+                src={`https://picsum.photos/200/200?random=${index}`}
                 alt={character.name}
                 width={200}
                 height={200}
@@ -114,19 +109,26 @@ export default function Home() {
           ))
         )}
       </div>
-      <div className="pagination mt-4 sticky top-0">
-        {Array.from({ length: totalPages }, (_, i) => (
-          <button
-            key={i}
-            onClick={() => goToPage(i + 1)}
-            className={`bg-blue-500 text-white font-semibold px-3 py-2 rounded-full hover:bg-blue-600 mx-2 ${
-              i + 1 === currentPage ? 'bg-blue-600' : ''
-            }`}
-          >
-            {i + 1}
-          </button>
-        ))}
-      </div>
+      {selectedCharacter && (
+          <CharacterModal
+          character={selectedCharacter}
+          homeworld={homeworld}
+          onClose={closeCharacterModal}
+        />
+
+)}
+
+      <div className="pagination mt-4 bottom-0">
+  {Array.from({ length: totalPages }, (_, i) => (
+    <button
+      key={i}
+      onClick={() => goToPage(i + 1)}
+      className={`bg-blue-500 text-white font-semibold px-3 py-2 rounded-full hover:bg-blue-600 mx-2 ${i + 1 === currentPage ? 'bg-blue-600' : ''}`}
+    >
+      {i + 1}
+    </button>
+  ))}
+</div>
     </div>
   );
 }
